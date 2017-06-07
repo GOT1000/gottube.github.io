@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="GOT">
+<!-- =================artist==================== -->
+<resultMap type="artistVo" id="artistListMap">
+	<result property="ar_no" column="ar_no"/>
+	<result property="ar_type" column="ar_type"/>
+	<result property="ar_name" column="ar_name"/>
+	<result property="profile" column="profile"/>
+	<result property="rating" column="rating"/>
+	<result property="content" column="content" jdbcType="CLOB"
+	javaType="java.lang.String" typeHandler="com.gottube.handler.CLOBHandler"/>
+	<result property="bg" column="bg"/>
+</resultMap>
+  <select id="getArtistNextNo" resultType="int">
+	select nvl(max(ar_no),0)+1 from artist
+  </select>
+  <select id="listArtist" resultMap="artistListMap">
+  	select * from artist order by ar_name asc
+  </select>
+  <select id="searchArtist" resultType="artistVo" parameterType="HashMap">
+  	select ar_no,ar_name 
+  	from (select rownum rnum, ar_no, ar_name 
+  	from (select ar_no,ar_name 
+  	from artist where upper(ar_name) like '%'||upper(#{keyWord})||'%' 
+  	order by rating desc)b) 
+  	where rnum between #{start} and #{end}
+  </select>
+  <select id="countSearchArtist" resultType="int" parameterType="String">
+  	select count(*) from artist where upper(ar_name) like '%'||upper(#{keyWord})||'%'
+  </select>
+  <select id="listTopArtist" resultMap="artistListMap" parameterType="HashMap">
+    select ar_no,ar_name,profile
+    from (select rownum rnum, ar_no,ar_name,profile
+    from (select distinct ar.ar_no ar_no,ar_name,profile,
+    (select count(*) from artist_history ah where ar.ar_no=ah.ar_no
+    <if test="dateField=='today'">
+    	and chk_date like sysdate
+    </if>
+    <if test="dateField == 'this-week' || dateField == 'this-month'">
+    	and chk_date between #{startDate} and #{endDate}
+    </if>
+    <if test="dateField == 'all-time'">
+    </if>
+    ) rating 
+    from artist ar
+    order by rating desc,ar_name asc) b) 
+    where rnum between #{start} and #{end}
+  </select>
+  <select id="detailArtist" resultMap="artistListMap" parameterType="int">
+  	select * from artist where ar_no = #{ar_no}
+  </select>
+  <insert id="insertArtist" parameterType="artistVo" >
+  	insert into artist values(#{ar_no},#{ar_type},#{ar_name},#{profile},0,#{content},#{bg})
+  </insert>
+  <delete id="deleteArtist" parameterType="int">
+  	delete from artist where ar_no = #{ar_no}
+  </delete>
+   <insert id="insertArtistHistory" parameterType="HashMap">
+     insert into artist_history values(ar_history_sq.nextVal,${ar_no},${m_no},sysdate)
+  </insert>
+  <delete id="removeArtistHistory" parameterType="HashMap">
+     delete from artist_history where ar_no=#{ar_no} and m_no=#{m_no}
+  </delete>
+  <update id="updateArtistRating" parameterType="int">
+     update artist set rating = rating+1 where ar_no=#{ar_no}
+  </update>
+  <update id="updateArtistRatingQuit" parameterType="int">
+     update artist set rating = rating-1 where ar_no=#{ar_no}
+  </update>
+  <select id="checkArtistRating" resultType="int" parameterType="HashMap">
+     	select count(*) from artist_history where ar_no=#{ar_no} and m_no=#{m_no}
+  </select>
+<!-- ============================================ -->
+
+<!-- =================album==================== -->
+<resultMap type="HashMap" id="albumListMap">
+	<result property="a_no" column="a_no"/>
+	<result property="title" column="title"/>
+	<result property="content" column="content" jdbcType="CLOB" javaType="java.lang.String"
+	typeHandler="com.gottube.handler.CLOBHandler"/>
+	<result property="a_img" column="a_img"/>
+	<result property="release_date" column="release_date" jdbcType="DATE"
+	javaType="java.util.Date"/>
+	<result property="rating" column="rating"/>
+	<result property="hit" column="hit"/>
+	<result property="a_name" column="a_name"/>
+</resultMap>
+<resultMap type="HashMap" id="albumArtistMap">
+	<result property="a_no" column="a_no"/>
+	<result property="ar_no" column="ar_no"/>
+	<result property="input_idx" column="input_idx"/>
+</resultMap>
+<resultMap type="HashMap" id="albumTrackMap">
+	<result property="a_no" column="a_no"/>
+	<result property="s_no" column="s_no"/>
+	<result property="s_title" column="s_title"/>
+	<result property="a_name" column="a_name"/>
+</resultMap>
+<resultMap type="HashMap" id="artistRecentAlbumMap">
+	<result property="a_no" column="a_no"/>
+	<result property="title" column="title"/>
+	<result property="release_date" column="release_date" jdbcType="DATE"
+	javaType="java.util.Date"/>
+	<result property="a_img" column="a_img"/>
+	<result property="a_name" column="a_name"/>
+</resultMap>
+  <select id="getAlbumNextNo" resultType="int">
+  	select nvl(max(a_no),0)+1 from album
+  </select> 
+  <select id="listAlbum" resultMap="albumListMap" parameterType="HashMap">
+  	select a_no,title,release_date,a_img,a_name 
+  	from (select rownum rnum,a_no,title,release_date,a_img,a_name 
+  	from (select distinct a.a_no a_no,title,release_date,a_img,a_name a_name 
+  	from album a,album_track at where at.a_no=a.a_no
+  	<if test="keyWord != '' and keyField == 'title'">
+     	and upper(title) like '%'||upper(#{keyWord})||'%'
+    </if>
+   <if test="keyWord != '' and keyField == 'a_name'">
+     	and upper(a_name) like '%'||upper(#{keyWord})||'%'
+    </if>		  	
+    <if test="keyWord != '' and keyField == 'all'">
+    	and (upper(title) like '%'||upper(#{keyWord})||'%'
+    	or upper(a_name) like '%'||upper(#{keyWord})||'%')
+    </if>	
+  	order by release_date desc) b) 
+  	where rnum between #{start} and #{end}
+  </select>
+  <select id="countAlbum" resultType="int" parameterType="HashMap">
+  	select count(*) from (select distinct at.a_no,title,release_date,a_img,a_name
+  		from album a,album_track at
+  		where at.a_no=a.a_no
+     		<if test="keyWord != '' and keyField == 'title'">
+     		and	upper(title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'a_name'">
+     		and upper(a_name) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+		    	and (upper(title) like '%'||upper(#{keyWord})||'%'
+		    	or upper(a_name) like '%'||upper(#{keyWord})||'%')
+		    </if>	
+  	)  	
+  </select>
+  <select id="detailAlbum" resultType="albumVo" parameterType="int">
+  	select * from album where a_no = #{a_no}
+  </select>
+  <insert id="insertAlbum" parameterType="albumVo" >
+  	insert into album values(#{a_no},#{title},#{content},#{a_img},#{release_date},0,0)
+  </insert>
+  <delete id="deleteAlbum" parameterType="int">
+  	delete from album where a_no = #{a_no}
+  </delete>
+  <select id="listAlbumArtist" resultMap="albumArtistMap" parameterType="int">
+  	select * from album_artist where a_no = #{a_no} order by input_idx asc
+  </select>
+  <select id="listAlbumTrack" resultMap="albumTrackMap" parameterType="int">
+  	select a.a_no a_no,s.s_no s_no,s.s_title s_title,a.a_name a_name from song s,album_track a where a.s_no=s.s_no and a_no=#{a_no} order by input_idx
+  </select>
+  <insert id="insertAlbumArtist" parameterType="HashMap">
+  	insert into album_artist values(#{a_no},#{ar_no},#{input_idx})
+  </insert>
+  <insert id="insertAlbumTrack" parameterType="HashMap">
+  	insert into album_track values(#{a_no},#{s_no},#{a_name},sysdate)
+  </insert>
+  <select id="listArtistRecentAlbum" resultMap="artistRecentAlbumMap" parameterType="int">
+  	select a.a_no,title,release_date,a_img from album a,artist ar,album_artist aa where ar.ar_no=#{ar_no} and a.a_no=aa.a_no and ar.ar_no=aa.ar_no order by release_date desc
+  </select>
+  <select id="MainRecentAlbum" resultMap="artistRecentAlbumMap" parameterType="int">
+  	select distinct a.a_no,title,release_date,a_img,a_name from album_track at,album a,artist ar,album_artist aa where at.a_no=a.a_no and a.a_no=aa.a_no and ar.ar_no=aa.ar_no order by release_date desc
+  </select>
+  <!-- ============================================ -->
+  <!-- =================song====================== -->
+  <resultMap type="TrackVo" id="songListMap">
+	<result property="s_no" column="s_no"/>
+	<result property="s_title" column="s_title"/>
+	<result property="lyrics" column="lyrics" jdbcType="CLOB" javaType="java.lang.String"
+	typeHandler="com.gottube.handler.CLOBHandler"/>
+	<result property="rating" column="rating"/>
+	<result property="release_date" column="release_date" jdbcType="DATE"
+	javaType="java.util.Date"/>
+	<result property="s_file" column="s_file"/>
+	<result property="etc" column="etc"/>
+	<result property="hit" column="hit"/>
+	<result property="a_img" column="a_img"/>
+	<result property="title" column="title"/>
+	<result property="a_no" column="a_no"/>
+	<result property="a_name" column="a_name"/>
+  </resultMap>
+  <resultMap type="HashMap" id="songArtistMap">
+	<result property="ar_no" column="ar_no"/>
+	<result property="ar_name" column="ar_name"/>
+	<result property="profile" column="profile"/>
+  </resultMap>
+  <select id="getSongNextNo" resultType="int">
+  	select nvl(max(s_no),0)+1 from song
+  </select>
+  <select id="listSong" resultMap="songListMap">
+  	select s.s_no s_no,s_title,lyrics,s.rating rating, s.release_date release_date, s_file, etc, s.hit hit, a_img, title, a.a_no a_no 
+  	from song s,album_track a_tr, album a where a.a_no=a_tr.a_no and s.s_no and a_tr.s_no
+  </select>
+  <select id="countSearchMusic" resultType="int" parameterType="HashMap">
+  	select count(*) from (select s_no,s_title,rating,hit,a_name,a_img 
+    from (select distinct s.s_no s_no,s_title,
+    (select count(*) from song_history sh where sh.s_no=s.s_no
+    ) rating,a_img,s.hit, a_name,a.title title 
+    from song s, song_artist sa, artist ar,album a,album_track at 
+    where ar.ar_no=sa.ar_no and s.s_no = sa.s_no and a.a_no=at.a_no and at.s_no = s.s_no 
+    		<if test="keyWord != '' and keyField == 's_title'">
+     			and upper(s_title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'a_name'">
+     			and upper(a_name) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     			and (upper(s_title) like '%'||upper(#{keyWord})||'%'
+     			or upper(a_name) like '%'||upper(#{keyWord})||'%')
+     		</if>
+    union select distinct s.s_no s_no,s_title,
+    (select count(*) from song_history sh where sh.s_no=s.s_no
+    ) rating,a_img,s.hit, a_name,a.title title 
+    from song s, song_feat sf, artist ar,album a,album_track at 
+    where ar.ar_no=sf.ar_no and s.s_no = sf.s_no and a.a_no=at.a_no and at.s_no = s.s_no 
+    		<if test="keyWord != '' and keyField == 's_title'">
+     			and upper(s_title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'a_name'">
+     			and upper(ar_name) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     			and (upper(s_title) like '%'||upper(#{keyWord})||'%'
+     			or upper(ar_name) like '%'||upper(#{keyWord})||'%')
+     		</if>
+    order by rating desc,hit desc) b) 
+  </select>
+  <select id="listMusic" resultMap="songListMap" parameterType="HashMap">
+    select s_no,s_title,rating,hit,a_name,a_img 
+    from (select rownum rnum, s_no,s_title,rating,hit,a_name,a_img 
+    from (select distinct s.s_no s_no,s_title,
+    (select count(*) from song_history sh where sh.s_no=s.s_no
+    <if test="dateField=='today'">
+    	and chk_date like sysdate
+    </if>
+    <if test="dateField == 'this-week' || dateField == 'this-month'">
+    	and chk_date between #{startDate} and #{endDate}
+    </if>
+    <if test="dateField == 'all-time'">
+    </if>
+    ) rating,a_img,s.hit, a_name,a.title title 
+    from song s, song_artist sa, artist ar,album a,album_track at 
+    where ar.ar_no=sa.ar_no and s.s_no = sa.s_no and a.a_no=at.a_no and at.s_no = s.s_no 
+    		<if test="keyWord != '' and keyField == 's_title'">
+     			and upper(s_title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'a_name'">
+     			and upper(a_name) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     			and (upper(s_title) like '%'||upper(#{keyWord})||'%'
+     			or upper(a_name) like '%'||upper(#{keyWord})||'%')
+     		</if>
+    union select distinct s.s_no s_no,s_title,
+    (select count(*) from song_history sh where sh.s_no=s.s_no
+    <if test="dateField=='today'">
+    	and chk_date like sysdate
+    </if>
+    <if test="dateField == 'this-week' || dateField == 'this-month'">
+    	and chk_date between #{startDate} and #{endDate}
+    </if>
+    <if test="dateField == 'all-time'">
+    </if>
+    ) rating,a_img,s.hit, a_name,a.title title 
+    from song s, song_feat sf, artist ar,album a,album_track at 
+    where ar.ar_no=sf.ar_no and s.s_no = sf.s_no and a.a_no=at.a_no and at.s_no = s.s_no 
+    		<if test="keyWord != '' and keyField == 's_title'">
+     			and upper(s_title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'a_name'">
+     			and upper(ar_name) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     			and (upper(s_title) like '%'||upper(#{keyWord})||'%'
+     			or upper(ar_name) like '%'||upper(#{keyWord})||'%')
+     		</if>
+    order by rating desc,hit desc) b) 
+    where rnum between #{start} and #{end}
+  </select>
+  <select id="detailSong" resultMap="songListMap" parameterType="int">
+ 	select s.s_no s_no,s_title,lyrics,s.rating rating, s.release_date release_date, s_file, etc, s.hit hit, a_img, title, a.a_no a_no
+  	from song s,album_track a_tr, album a where a.a_no=a_tr.a_no and s.s_no=a_tr.s_no and s.s_no=#{s_no}
+  </select>
+  <insert id="insertSong" parameterType="songVo" >
+  	insert into song values(#{s_no},#{s_title},#{lyrics},0,#{release_date},#{s_file},#{etc},0)
+  </insert>
+  <update id="updateSongHit" parameterType="int">
+  	update song set hit=hit+1 where s_no=#{s_no}
+  </update>
+  <update id="updateSong" parameterType="songVo">
+  	update song set s_title=#{s_title},lyrics=#{lyrics},release_date=#{release_date},s_file=#{s_file},etc=#{etc} where s_no=#{s_no}
+  </update>
+  <delete id="deleteSong" parameterType="int">
+  	delete from song where s_no = #{s_no}
+  </delete>
+  <select id="listSongArtist" resultMap="songArtistMap" parameterType="int">
+  	select ar.ar_no ar_no, ar_name, profile from song_artist sa, artist ar where s_no = #{s_no} and ar.ar_no=sa.ar_no order by input_idx asc
+  </select>
+  <select id="listSongProducer" resultMap="songArtistMap" parameterType="int">
+  	select ar.ar_no ar_no, ar_name, profile from song_producer sa, artist ar where s_no = #{s_no} and ar.ar_no=sa.ar_no order by input_idx asc
+  </select>
+  <select id="listSongFeat" resultMap="songArtistMap" parameterType="int">
+  	select ar.ar_no ar_no, ar_name, profile from song_feat sa, artist ar where s_no = #{s_no} and ar.ar_no=sa.ar_no order by input_idx asc
+  </select>
+  <insert id="insertSongArtist" parameterType="HashMap">
+  	insert into song_artist values(#{s_no},#{ar_no},#{input_idx})
+  </insert>
+  <insert id="insertSongProducer" parameterType="HashMap">
+  	insert into song_producer values(#{s_no},#{ar_no},#{input_idx})
+  </insert>
+  <insert id="insertSongFeat" parameterType="HashMap">
+  	insert into song_feat values(#{s_no},#{ar_no},#{input_idx})
+  </insert>
+  <select id="listArtistHotSong" parameterType="int" resultType="TrackVo">
+  	select s.s_no s_no,s_title,s.hit,a_img,a_name from song s,artist ar,album a,song_artist sa,album_track at where ar.ar_no=#{ar_no} and sa.s_no=s.s_no and at.a_no=a.a_no and ar.ar_no=sa.ar_no and at.s_no=s.s_no
+union select s.s_no s_no,s_title,s.hit,a_img,a_name from song s,artist ar,album a,song_feat sa,album_track at where ar.ar_no=#{ar_no} and sa.s_no=s.s_no and at.a_no=a.a_no and ar.ar_no=sa.ar_no and at.s_no=s.s_no order by hit desc
+  </select>
+  <select id="MainHotSong" resultType="TrackVo">
+  	select distinct s.s_no s_no ,s.s_title s_title,a_name,a_img,s.hit hit from song s,artist ar,album a,song_artist sa,album_track at where sa.s_no=s.s_no and at.a_no=a.a_no and ar.ar_no=sa.ar_no and at.s_no=s.s_no order by s.hit desc
+  </select>
+  <select id="listMemberLikeSong" resultMap="commentsHistoryMap" parameterType="int">
+     select * from song_history where m_no = #{m_no}
+  </select>
+  <insert id="insertSongHistory" parameterType="HashMap">
+     insert into song_history values(s_history_sq.nextVal,${s_no},${m_no},sysdate)
+  </insert>
+  <delete id="removeSongHistory" parameterType="HashMap">
+     delete from song_history where s_no=#{s_no} and m_no=#{m_no}
+  </delete>
+  <update id="updateSongRating" parameterType="int">
+     update song set rating = rating+1 where s_no=#{s_no}
+  </update>
+  <update id="updateSongRatingQuit" parameterType="int">
+     update song set rating = rating-1 where s_no=#{s_no}
+  </update>
+  <select id="checkSongRating" resultType="int" parameterType="HashMap">
+     	select count(*) from song_history where s_no=#{s_no} and m_no=#{m_no}
+  </select>
+
+   <select id="myMusic" parameterType="HashMap" resultMap="songListMap">
+    	select a_img,s_title,a_name,release_date,s_no,rating,hit 
+    	from (select rownum rnum,a_img,s_title,a_name,release_date,s_no,rating,hit 
+    	from (select a.a_img,s.s_title s_title,at.a_name a_name,s.release_date release_date,s.hit hit,s.rating rating,s.s_no s_no 
+    	from song s,album_track at,album a,song_history sh where sh.s_no=s.s_no and at.a_no=a.a_no and s.s_no=at.s_no and sh.m_no=#{m_no}
+    	<if test="keyField == 'release_date'">
+    		order by release_date desc
+    	</if>
+    	<if test="keyField == 'rating'">
+    		order by rating desc
+    	</if>
+    	<if test="keyField == 'hit'">
+    		order by hit desc
+    	</if>
+    	) d) 
+    	where rnum between #{start} and #{end}
+     </select>
+     <select id="countMyMusic" parameterType="int" resultType="int">
+     	select count(*) from song_history where m_no=#{m_no}
+     </select>
+  <!-- ============================================ -->
+   <!-- =================member====================== -->
+    <resultMap type="memberVo" id="memberListMap">
+	<result property="m_no" column="m_no"/>
+	<result property="m_id" column="m_id"/>
+	<result property="profile" column="profile"/>
+	<result property="pwd" column="pwd"/>
+	<result property="m_name" column="m_name"/>
+	<result property="phone" column="phone"/>
+	<result property="email" column="email"/>
+	<result property="addr" column="addr"/>
+	<result property="m_level" column="m_level"/>
+	<result property="join_time" column="join_time" jdbcType="DATE"
+	javaType="java.util.Date"/>
+  </resultMap>
+   <select id="getMemberNextNo" resultType="int">
+  	select nvl(max(m_no),0)+1 from member
+   </select>
+   <select id="checkMember" parameterType="HashMap" resultMap="memberListMap">
+   	select * from member where m_id=#{m_id} and pwd=#{pwd}
+   </select>
+   <select id="getName" parameterType="int" resultType="String">
+   	select m_id from member m, board b where b.b_no=#{b_no} and b.m_no=m.m_no
+   </select>
+     <!-- =================news====================== -->
+     <resultMap type="boardVo" id="boardListMap">
+     <result property="b_no" column="b_no"/>
+     <result property="m_no" column="m_no"/>
+     <result property="b_type" column="b_type"/>
+     <result property="title" column="title"/>
+     <result property="content" column="content" jdbcType="CLOB" javaType="java.lang.String"
+	typeHandler="com.gottube.handler.CLOBHandler"/>
+     <result property="fname" column="fname"/>
+     <result property="upload_time" column="upload_time" jdbcType="DATE"
+	javaType="java.util.Date"/>
+     <result property="hit" column="hit"/>
+     <result property="rating" column="rating"/>
+     <result property="comment_count" column="comment_count"/>
+     <result property="m_id" column="m_id"/>
+     </resultMap>
+     <update id="updateBoardHit" parameterType="int">
+	  	update board set hit=hit+1 where b_no=#{b_no}
+	 </update>
+     <select id="getBoardNextNo" resultType="int">
+  		select nvl(max(b_no),0)+1 from board
+  	 </select>
+  	 <select id="listBreaking" resultMap="boardListMap">
+  	 	select b_no,title,fname,hit from board b order by upload_time desc
+  	 </select>
+     <select id="listNews" resultMap="boardListMap" parameterType="HashMap">
+     	select b_no,m_id,b_type,title,content,fname,upload_time,hit,rating,comment_count
+     	from (select rownum rnum,b_no,m_id,b_type,title,content,fname,upload_time,hit,rating,comment_count 
+     	from (select * from board b1, member m
+  		<where>
+  			m.m_no=b1.m_no
+  			<if test="keyWord != '' and keyField == 'title'">
+     			and upper(title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'content'">
+     			and contains (content,'%'||upper(#{keyWord})||'%')>0
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     			and (upper(title) like '%'||upper(#{keyWord})||'%' or
+     			contains (content,'%'||#{keyWord}||'%')>0)
+     		</if>
+  		</where>
+  		order by upload_time desc) b)
+  		<![CDATA[
+  			where rnum between #{start} and #{end}
+  		]]>
+     </select>
+     <select id="countNews" parameterType="HashMap" resultType="int">
+     	select count(*) from board
+     	where
+     	b_type=4
+     		<if test="keyWord != '' and keyField == 'title'">
+     		and	upper(title) like '%'||upper(#{keyWord})||'%'
+     		</if>
+     		<if test="keyWord != '' and keyField == 'content'">
+     		and	contains (content,'%'||#{keyWord}||'%')>0
+     		</if>
+     		<if test="keyWord != '' and keyField == 'all'">
+     		and	(upper(title) like '%'||upper(#{keyWord})||'%' or
+     			contains (content,'%'||#{keyWord}||'%')>0)
+     		</if>
+     </select>
+     <insert id="insertNews" parameterType="boardVo">
+    	insert into board values(#{b_no},#{m_no},4,#{title},#{content},#{fname},sysdate,0,0,0)
+     </insert>
+     <select id="detailNews" resultMap="boardListMap" parameterType="int">
+     	select * from board where b_type=4 and b_no=#{b_no}
+     </select>
+     <update id="updateBoardRating" parameterType="int">
+     	update board set rating=rating+1 where b_no=#{b_no}
+     </update>
+     <update id="updateBoardRatingQuit" parameterType="int">
+     	update board set rating=rating-1 where b_no=#{b_no}
+     </update>
+     <select id="checkBoardRating" resultType="int" parameterType="HashMap">
+     	select count(*) from board_history where b_no=#{b_no} and m_no=#{m_no}
+     </select>
+     <insert id="insertBoardHistory" parameterType="HashMap">
+     	insert into board_history values(b_history_sq.nextVal,${b_no},${m_no},sysdate)
+     </insert>
+     <delete id="removeBoardHistory" parameterType="HashMap">
+     	delete from board_history where b_no=#{b_no} and m_no=#{m_no}
+     </delete>
+      <insert id="insertBoardArtist" parameterType="HashMap">
+	  	insert into board_artist values(#{b_no},#{ar_no})
+	  </insert>
+	  <select id="listRelatedPosts" parameterType="int" resultMap="boardListMap">
+	  	select title,fname,b.b_no b_no from board b,board_artist ba where ba.b_no=b.b_no and ar_no=#{ar_no} order by upload_time desc
+	  </select>
+     <!-- ============================================ -->
+     <!-- =================comments====================== -->
+     <resultMap type="commentsVo" id="commentsListMap">
+     <result property="c_no" column="c_no"/> 
+     <result property="b_no" column="b_no"/>
+     <result property="m_no" column="m_no"/>
+     <result property="m_id" column="m_id"/>
+     <result property="profile" column="profile"/>
+     <result property="content" column="content"/>
+     <result property="fname" column="fname"/>
+     <result property="upload_time" column="upload_time"/>
+     <result property="rating" column="rating"/>
+     <result property="group_no" column="group_no"/>
+     <result property="parent_c_no" column="parent_c_no"/>
+     <result property="depth" column="depth"/>
+     <result property="order_no" column="order_no"/>
+     <result property="title" column="title"/>
+     </resultMap>
+     <resultMap type="HashMap" id="commentsHistoryMap">
+     <result property="ch_no" column="ch_no"/> 
+     <result property="c_no" column="c_no"/>
+     <result property="m_no" column="m_no"/>
+     </resultMap>
+     <select id="listComments" resultMap="commentsListMap" parameterType="HashMap">
+     	select c_no,b_no,c.m_no m_no,m_id,profile,content,
+     	upload_time,rating,group_no,parent_c_no,depth,order_no from comments c,member m
+     	where m.m_no=c.m_no and b_no=#{b_no}
+     	order by group_no asc, order_no asc
+     </select>     
+     <insert id="insertComments" parameterType="commentsVo">
+     	insert into comments values(#{c_no},#{b_no},#{m_no},#{content},sysdate,0,#{group_no},#{parent_c_no},#{depth},#{order_no})
+     </insert>   
+     <delete id="deleteComments" parameterType="HashMap">
+     	delete from comments where group_no=#{group_no} and order_no between #{start} and #{end}
+     </delete>
+     <select id="countComments" resultType="int" parameterType="int">
+     	select count(*) from comments where b_no=#{b_no}
+     </select>
+     <select id="getCommentsNextNo" resultType="int">
+     	select nvl(max(c_no),0)+1 from comments 
+     </select>
+     <select id="detailComments" resultMap="commentsListMap" parameterType="int">
+     	select * from comments where c_no = #{c_no}
+     </select>
+     <select id="selectCountParentNo" parameterType="int" resultType="int">
+     	select count(parent_c_no) from comments where parent_c_no=#{parent_c_no}
+     </select>
+     <select id="selectMaxOrderNoByParentNo" parameterType="int" resultType="int">
+     	select max(order_no) from comments start with c_no=#{c_no} connect by prior c_no = parent_c_no 
+     	order by order_no desc
+     </select>
+     <select id="selectCnoListByParentNo" parameterType="int" resultType="int">
+     	select c_no from comments start with c_no=#{c_no} connect by prior c_no = parent_c_no 
+     	order by order_no desc
+     </select>
+     <select id="selectLatestOrderNoByParentNo" parameterType="int" resultType="int">
+     	select order_no from comments where c_no=#{c_no}
+     </select>
+     <update id="updateComments" parameterType="HashMap">
+     	update comments set content = #{content} where c_no=#{c_no}
+     </update>
+     <update id="updateOrderNoByGroupNo" parameterType="Hashmap">
+     	update comments set order_no=order_no+1 where order_no>=#{order_no} and group_no=#{group_no}
+     </update>
+      <update id="updateCommentsRating" parameterType="int">
+     	update comments set rating = rating+1 where c_no=#{c_no}
+     </update>
+      <update id="updateCommentsRatingQuit" parameterType="int">
+     	update comments set rating = rating-1 where c_no=#{c_no}
+     </update>
+     <insert id="insertCommentsHistory" parameterType="HashMap">
+     	insert into comments_history values(c_history_sq.nextVal,#{c_no},#{m_no},#{b_no})
+     </insert>
+     <select id="detailCommentsHistory" resultMap="commentsHistoryMap" parameterType="int">
+     	select * from comments_history where m_no = #{m_no}
+     </select>
+     <delete id="deleteCommentsHistory" parameterType="Hashmap">
+     	delete from comments_history where c_no=#{c_no}
+     	<if test="m_no != ''">
+     		and m_no=#{m_no}
+     	</if>
+     </delete>
+     <delete id="removeCommentsHistory" parameterType="int">
+     	delete from comments_history where c_no=#{c_no}
+     </delete>
+     <update id="updateCommentsCount" parameterType="int">
+     	update board set comment_count=comment_count+1 where b_no=#{b_no}
+     </update>
+     <update id="updateCommentsCountRemove" parameterType="int">
+     	update board set comment_count=comment_count-1 where b_no=#{b_no}
+     </update>
+     <!-- ============================================= -->
+     <!-- =================member====================== -->
+     <resultMap type="HashMap" id="myCommentsMap">
+     <result property="title" column="title"/>
+     <result property="content" column="content"/>
+     <result property="rating" column="rating"/>
+     <result property="upload_time" column="upload_time"/>
+     <result property="b_no" column="b_no"/>
+     </resultMap>
+     <select id="memberIdChk" parameterType="String" resultType="memberVo">
+     	select * from member where m_id=#{m_id}
+     </select>
+     <select id="memberPwdChk" parameterType="HashMap" resultType="int">
+     	select count(*) from member where m_id=#{m_id} and pwd=#{pwd}
+     </select>    
+     <select id="detailMember" parameterType="int" resultType="memberVo">
+     	select * from member where m_no=#{m_no}
+     </select>
+     <select id="updateMemberForm" parameterType="HashMap" resultType="memberVo">
+     	select * from member where m_id=#{m_id} and pwd=#{pwd}
+     </select>
+<!--      <select id="listMember" resultMap="memberListMap"> -->
+<!--      	select * from member -->
+<!--      </select> -->
+     <insert id="insertMember" parameterType="memberVo">
+     	insert into member values(member_no_sq.nextVal,#{m_id},#{profile},#{pwd},#{m_name},#{phone},#{email},#{addr},1,sysdate)
+     </insert>
+     <select id="myComments" parameterType="HashMap" resultMap="myCommentsMap">
+    	select title,content,rating,upload_time,b_no
+    	from (select rownum rnum,title,content,rating,upload_time,b_no
+    	from (select b.title title,c.content content, c.rating rating,c.upload_time upload_time,c.b_no b_no 
+    	from board b,comments c where c.b_no=b.b_no and c.m_no=#{m_no} 
+    	<if test="keyField=='upload_time'">
+    	order by c.upload_time desc
+    	</if>
+    	<if test="keyField=='rating'">
+    	order by c.rating desc
+    	</if>
+    	) a) 
+    	where rnum between #{start} and #{end}
+     </select>
+     <select id="countMyComments" parameterType="int" resultType="int">
+     	select count(*) from comments where m_no=#{m_no}
+     </select>
+     <update id="updateMember" parameterType="memberVo">
+    	update member set pwd=#{pwd},profile=#{profile},m_name=#{m_name},phone=#{phone},email=#{email},addr=#{addr} where m_id=#{m_id}	
+    </update>
+<!--      <select id="myPost" parameterType="HashMap" resultMap="boardListMap"> -->
+<!--      	select b_no,m_id,b_type,title,content,fname,upload_time,hit,rating,comment_count -->
+<!--      	from (select rownum rnum,b_no,m_id,b_type,title,content,fname,upload_time,hit,rating,comment_count  -->
+<!--      	from (select * from board b1, member m -->
+<!--      	where b1.m_no=m.m_no and m.m_no=#{m_no} -->
+<!--   		<if test="keyField == 'upload_time'"> -->
+<!--   		order by upload_time desc -->
+<!--   		</if> -->
+<!--   		<if test="keyField == 'rating'"> -->
+<!--   		order by rating desc -->
+<!--   		</if> -->
+<!--   		) b) -->
+<!--   		<![CDATA[ -->
+<!--   			where rnum between #{start} and #{end} -->
+<!--   		]]> -->
+<!--      </select> -->
+<!--      <select id="countMyPost" resultType="int" parameterType="int"> -->
+<!--      	select count(*) from board where m_no=#{m_no} -->
+<!--      </select> -->
+<!--      <update id="updateMember" parameterType="memberVo"> -->
+<!--      	update member set pwd = #{pwd},m_name=#{m_name},phone=#{phone},email=#{email},addr=#{addr} where m_no=#{m_no} -->
+<!--      </update> -->
+<!--      <delete id="deleteMember" parameterType="int"> -->
+<!--      	delete from member where m_no=#{m_no} -->
+<!--      </delete> -->
+</mapper>

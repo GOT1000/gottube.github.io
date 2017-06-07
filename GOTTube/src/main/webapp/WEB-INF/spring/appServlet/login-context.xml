@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://www.springframework.org/schema/beans"
+    xmlns:mvc="http://www.springframework.org/schema/mvc"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+       http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+       
+   
+     
+    <mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/myPage.do"/>
+            <mvc:mapping path="/updateMember.do"/>
+            <mvc:mapping path="/updateMemberOk.do"/>
+            <bean class="com.gottube.interceptor.LoginInterceptor">
+            
+            </bean>
+        </mvc:interceptor>
+        <mvc:interceptor>
+        	<mvc:mapping path="/insertAlbum.do"/>
+        	<mvc:mapping path="/updateAlbum.do"/>
+        	<mvc:mapping path="/insertArtist.do"/>
+        	<mvc:mapping path="/updateArtist.do"/>
+            
+            <bean class="com.gottube.interceptor.LevelInterceptor"></bean>
+        </mvc:interceptor>
+
+        <mvc:interceptor>
+            <mvc:mapping path="/updateMember.do"/>
+
+            
+            <bean class="com.gottube.interceptor.updateInterceptor"></bean>
+        </mvc:interceptor>
+<!--         <mvc:interceptor> -->
+<!--             <mvc:mapping path="/insertArtist.do"/> -->
+<!--             <bean class="com.gottube.interceptor.LevelInterceptor"></bean> -->
+<!--         </mvc:interceptor> -->
+<!--         <mvc:interceptor> -->
+<!--             <mvc:mapping path="/insertNews.do"/> -->
+<!--             <bean class="com.gottube.interceptor.LevelInterceptor"></bean> -->
+<!--         </mvc:interceptor> -->
+    </mvc:interceptors>
+     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix" value="/WEB-INF/views/" />
+		<property name="suffix" value=".jsp" />
+     </bean>
+   
+     
+	 <context:component-scan base-package="com.gottube.test01"></context:component-scan>
+	 <context:component-scan base-package="com.gottube.controller"/>
+	 <context:component-scan base-package="com.gottube.interceptor"/>
+	<context:component-scan base-package="com.gottube.dao"/>
+	<context:component-scan base-package="com.gottube.vo"/>
+</beans>

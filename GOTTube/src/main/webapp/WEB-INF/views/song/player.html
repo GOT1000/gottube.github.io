@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Single Song Tutorial</title>
+        <script type="text/javascript" src="resources/js/amplitude.js"></script>
+        <link rel="stylesheet" type="text/css" href="resources/css/single-song-styles.css"/>
+    </head>
+
+    <div id="player">
+        <div id="player-top">
+            <div id="amplitude-play-pause" class="amplitude-paused"></div>
+            <div id="track-info-container">
+                <span id="amplitude-now-playing-title">Song Name</span> <span id="slash">-</span><br><span id="amplitude-now-playing-artist">Artist</span>
+            </div>
+            <div id="time-info-container">
+                <span id="amplitude-current-time">0:00</span> / <span id="amplitude-audio-duration">0:00</span>
+            </div>
+            <div id="amplitude-song-slider"><div id="amplitude-track-progress"></div></div>
+        </div>
+    </div>
+    <audio id="single-song" amplitude-artist="Jake Jendusa" amplitude-title="Porch Stomp Blues" amplitude-album="In Search Of EP" amplitude-album-art-url="album-art/jendusaep.jpg" amplitude-audio-type="song">
+        <source src="resources/upload/music/AintNothing.mp3" type="audio/mp3"/>
+    </audio>
+</html>

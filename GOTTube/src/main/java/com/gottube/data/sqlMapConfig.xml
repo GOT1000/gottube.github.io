@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+	<properties resource="com/gottube/data/db.properties"/>
+	<typeAliases>
+		<typeAlias type="com.gottube.vo.ArtistVo" alias="artistVo"/>
+		<typeAlias type="com.gottube.vo.AlbumVo" alias="albumVo"/>
+		<typeAlias type="com.gottube.vo.SongVo" alias="songVo"/>
+		<typeAlias type="com.gottube.vo.TrackVo" alias="TrackVo"/>
+		<typeAlias type="com.gottube.vo.MemberVo" alias="memberVo"/>
+		<typeAlias type="com.gottube.vo.BoardVo" alias="boardVo"/>
+		<typeAlias type="com.gottube.vo.PageVo" alias="pageVo"/>
+		<typeAlias type="com.gottube.vo.CommentsVo" alias="commentsVo"/>
+	</typeAliases>	
+	<typeHandlers>
+		<typeHandler handler="com.gottube.handler.CLOBHandler" javaType="String" jdbcType="LONGVARCHAR"/>
+	</typeHandlers>
+	
+  <environments default="development">
+    <environment id="development">
+      <transactionManager type="JDBC"/>
+      <dataSource type="POOLED">
+        <property name="driver" value="${driver}"/>
+        <property name="url" value="${url}"/>
+        <property name="username" value="${user}"/>
+        <property name="password" value="${pwd}"/>
+      </dataSource>
+    </environment>
+  </environments>
+  <mappers>
+    <mapper resource="com/gottube/data/GOTMapper.xml"/>
+  </mappers>
+</configuration>
